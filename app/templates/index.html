@@ -1,0 +1,45 @@
+<!-- app/templates/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TLS Messaging Demo</title>
+</head>
+<body>
+    <h1>TLS‑Secured Messaging</h1>
+
+    <input type="text" id="msgInput" placeholder="Type your message..." />
+    <button id="sendBtn">Send</button>
+
+    <h3>Messages</h3>
+    <ul id="msgList"></ul>
+
+    <script>
+        const msgInput = document.getElementById('msgInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const msgList = document.getElementById('msgList');
+
+        async function sendMessage() {
+            const text = msgInput.value;
+            if (!text) return;
+            await fetch('/send', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({text})
+            });
+            msgInput.value = '';
+            loadMessages();
+        }
+
+        async function loadMessages() {
+            const res = await fetch('/messages');
+            const data = await res.json();
+            msgList.innerHTML = data.map(msg => `<li>${msg}</li>`).join('');
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        loadMessages();
+        // Refresh every 2 seconds
+        setInterval(loadMessages, 2000);
+    </script>
+</body>
+</html>
