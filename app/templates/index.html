@@ -1,44 +1,192 @@
-<!-- app/templates/index.html -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>TLS Messaging Demo</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureMsg Lobby</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <h1>TLS‑Secured Messaging</h1>
 
-    <input type="text" id="msgInput" placeholder="Type your message..." />
-    <button id="sendBtn">Send</button>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h2>SecureMsg</h2>
+            </div>
 
-    <h3>Messages</h3>
-    <ul id="msgList"></ul>
+            <div class="crypto-status">
+                <span class="dot"></span> TLS 1.3 Active
+            </div>
+
+            <nav class="sidebar-menu">
+                <a href="#" class="menu-item active">
+                    <i class="fa-regular fa-comment-dots"></i> Lobby
+                    <span class="badge">3</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i class="fa-solid fa-users"></i> Members
+                </a>
+                <a href="#" class="menu-item">
+                    <i class="fa-solid fa-magnifying-glass"></i> Search
+                </a>
+                <a href="#" class="menu-item">
+                    <i class="fa-regular fa-bell"></i> Alerts
+                </a>
+            </nav>
+        </aside>
+
+        <main class="main-chat">
+            <header class="chat-header">
+                <div class="channel-title">
+                    <i class="fa-solid fa-hashtag"></i> general-lobby
+                </div>
+                <div class="header-actions">
+                    <span class="secure-tag"><i class="fa-solid fa-shield-halved"></i> Encrypted</span>
+                    <button class="icon-btn"><i class="fa-solid fa-trash-can"></i></button>
+                    <button class="icon-btn"><i class="fa-solid fa-ellipsis"></i></button>
+                </div>
+            </header>
+
+            <section class="chat-feed" id="chatFeed">
+                <div class="date-divider"><span>Today</span></div>
+                
+                <div id="msgList" class="message-list">
+                    </div>
+            </section>
+
+            <footer class="chat-footer">
+                <div class="input-container">
+                    <textarea id="msgInput" placeholder="Send an encrypted message..." rows="1"></textarea>
+                    <div class="input-actions">
+                        <span class="char-count">0/500</span>
+                        <button id="sendBtn" class="send-btn">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </footer>
+        </main>
+    </div>
 
     <script>
         const msgInput = document.getElementById('msgInput');
         const sendBtn = document.getElementById('sendBtn');
         const msgList = document.getElementById('msgList');
+        const chatFeed = document.getElementById('chatFeed');
+
+        // 1. Assign a unique, persistent name to this device/tab if it doesn't have one
+        if (!localStorage.getItem('chatUsername')) {
+            const randomID = Math.floor(1000 + Math.random() * 9000);
+            localStorage.setItem('chatUsername', `User_${randomID}`);
+        }
+        const myUsername = localStorage.getItem('chatUsername');
 
         async function sendMessage() {
-            const text = msgInput.value;
+            const text = msgInput.value.trim();
             if (!text) return;
+            
+            msgInput.value = '';
+            
+            // Optimistic UI update using our actual device name
+            appendLocalMessage(text);
+
+            // 2. Send BOTH the text and our unique username to the server
             await fetch('/send', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({text})
+                body: JSON.stringify({
+                    username: myUsername,
+                    text: text
+                })
             });
-            msgInput.value = '';
+            
             loadMessages();
         }
 
-        async function loadMessages() {
-            const res = await fetch('/messages');
-            const data = await res.json();
-            msgList.innerHTML = data.map(msg => `<li>${msg}</li>`).join('');
+        function appendLocalMessage(text) {
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const initial = myUsername.split('_')[1]?.charAt(0) || 'Y';
+            
+            const msgHtml = `
+                <div class="msg-row outgoing">
+                    <div class="avatar user-y">${initial}</div>
+                    <div class="msg-block">
+                        <div class="msg-meta"><span class="username">You (${myUsername})</span> <span class="time">${time}</span></div>
+                        <div class="msg-bubble">${text}</div>
+                    </div>
+                </div>`;
+            msgList.insertAdjacentHTML('beforeend', msgHtml);
+            scrollToBottom();
         }
+
+       async function loadMessages() {
+                try {
+                    const res = await fetch('/messages');
+                    const data = await res.json(); 
+                    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    
+                    msgList.innerHTML = data.map((msg) => {
+                        let senderName = 'Anonymous';
+                        let messageText = '';
+
+                        // Robust check: Is the message an object format or a raw string?
+                        if (msg && typeof msg === 'object') {
+                            senderName = msg.username || 'Anonymous';
+                            messageText = msg.text || '';
+                        } else if (typeof msg === 'string') {
+                            // Fallback for your app factory's default historical data
+                            senderName = 'SystemUser'; 
+                            messageText = msg;
+                        }
+
+                        const isYou = senderName === myUsername; 
+                        const displayName = isYou ? `You (${senderName})` : senderName;
+                        
+                        // Extract a single letter safely for the avatar bubble
+                        let initial = '?';
+                        if (senderName.includes('_')) {
+                            initial = senderName.split('_')[1]?.charAt(0) || '?';
+                        } else {
+                            initial = senderName.charAt(0).toUpperCase();
+                        }
+                        
+                        return `
+                            <div class="msg-row ${isYou ? 'outgoing' : 'incoming'}">
+                                <div class="avatar ${isYou ? 'user-y' : 'user-a'}">${initial}</div>
+                                <div class="msg-block">
+                                    <div class="msg-meta">
+                                        <span class="username">${displayName}</span> 
+                                        <span class="time">${time}</span>
+                                    </div>
+                                    <div class="msg-bubble">${messageText}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    scrollToBottom();
+                } catch (err) {
+                    console.error("Error updating chat feed", err);
+                }
+            }
+
+        function scrollToBottom() {
+            chatFeed.scrollTop = chatFeed.scrollHeight;
+        }
+
+        msgInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
 
         sendBtn.addEventListener('click', sendMessage);
         loadMessages();
-        // Refresh every 2 seconds
         setInterval(loadMessages, 2000);
     </script>
 </body>
