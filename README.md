@@ -1,61 +1,55 @@
-# TLS-Secured Messaging App
+# TLS‑Secured Messaging App
 
-A **TLS-secured messaging application** built for a cryptography class.  
-The system demonstrates how TLS (Transport Layer Security) encrypts messages in transit, making them unreadable even when intercepted by an adversary.
+A lightweight Flask app that demonstrates TLS encryption by sending messages over HTTP (plaintext) or HTTPS (encrypted).  
+Run it on your local network, capture traffic with Wireshark, and compare the intercepted payloads.
 
-## Purpose
+## Quick Start
 
-- **Educational**: Show that intercepted network traffic appears as ciphertext when TLS is properly implemented.
-- **Local Network Deployment**: Run the app on your local LAN to simulate real‑world communication and interception (e.g., using Wireshark or a man‑in‑the‑middle proxy).
-
-## Tech Stack
-
-- **Backend**: Python (Flask or custom socket server with TLS)
-- **Frontend**: HTML + JavaScript (plain, no framework)
-- **Security**: Python’s `ssl` module (wrapping sockets with TLS certificates)
-
-## Getting Started
-
-1. **Clone the repository**  
-   ```bash
-   git clone <repo-url>
-   cd tls-secure-messaging-app
-   ```
-
-2. **Install dependencies** (Python 3.8+ recommended)  
-   ```bash
-   pip install -r requirements.txt   # if provided later
-   ```
-
-3. **Generate a self‑signed TLS certificate** (for local testing)  
-   ```bash
-   openssl req -x509 -newkey rsa:2048 -keyout server.key -out server.crt -days 365 -nodes
-   ```
-
-4. **Run the backend server**  
-   ```bash
-   python server.py
-   ```
-
-5. **Open the frontend**  
-   - Serve the HTML file (e.g., `python -m http.server 8000`) and open `http://localhost:8000` in a browser.  
-   - Or configure the backend to also serve static files.
-
-## Interception Demo
-
-1. Start the app and send a message between two clients.
-2. Use **Wireshark** (or a MITM proxy like mitmproxy) to capture traffic on the local network.
-3. Observe that the payload in the captured packets is **encrypted** (TLS ciphertext), not plaintext.
-4. This proves that the message was protected by TLS before being sent.
-
-## Project Status
-
-This is a **skeleton** for the project. The actual implementation of the server, client, and TLS wrappers will be added next.
-
----
-
-*For educational purposes only. Do not use in production without proper certificate authorities and security hardening.*
+### 1. Install dependencies
+```bash
+pip install -r requirements.txt
 ```
 
+### 2. Generate a self‑signed TLS certificate (only needed for HTTPS)
+```bash
+openssl req -x509 -newkey rsa:2048 -keyout ssl/server.key -out ssl/server.crt -days 365 -nodes -subj "/CN=192.168.0.1"
+```
+*Replace `192.168.0.1` with your server’s actual IP.*
+
+### 3. Run the server
+Choose one of the following commands:
+
+| Mode | Command | Port |
+|------|---------|------|
+| HTTP (no encryption) | `python server.py http` | 5000 |
+| HTTPS (TLS encryption) | `python server.py https` | 5000 |
+| Both (side‑by‑side) | `python server.py both` | HTTP 5001, HTTPS 5000 |
+
+- Without any argument, the script will prompt you for the mode.
+
+### 4. Access from a client
+- **HTTP:** `http://<server-ip>:5000`
+- **HTTPS:** `https://<server-ip>:5000` (accept the self‑signed warning)
+
+### 5. Interception demo (Wireshark)
+- Filter by `ip.addr == <server-ip> && tcp.port == 5000` (or 5001).
+- Send a message from the browser.
+- **HTTP** – the message appears as plaintext in the packet.
+- **HTTPS** – the payload is encrypted (ciphertext).
+
 ---
 
+## Project Structure
+```
+.
+├── app/
+│   ├── __init__.py
+│   ├── routes.py
+│   └── templates/
+│       └── index.html
+├── ssl/                  (create this folder for .crt and .key)
+├── server.py
+├── requirements.txt
+├── README.md
+└── .gitignore
+```
