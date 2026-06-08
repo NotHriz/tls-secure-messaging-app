@@ -1,0 +1,35 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+venv/
+env/
+.venv/
+
+# TLS certificates (should not be committed)
+*.crt
+*.key
+*.pem
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment variables
+.env
+*.env.local
+
+# Logs
+*.log
